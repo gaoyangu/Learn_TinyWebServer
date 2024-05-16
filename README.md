@@ -2,8 +2,13 @@
 
 ## 参考资料
 
-- https://github.com/qinguoyi/TinyWebServer/tree/raw_version
-
+- 项目地址：https://github.com/qinguoyi/TinyWebServer/tree/raw_version
+- 博客：
+    - [CSDN 网站服务器项目研究](https://blog.csdn.net/qq_59993282/category_12374990.html)
+    - [zwiley的随记](https://zwiley.github.io/mybook/webserver/0%20%E9%A1%B9%E7%9B%AE%E6%A6%82%E8%BF%B0/)
+    - [一文读懂社长的TinyWebServer](https://huixxi.github.io/2020/06/02/%E5%B0%8F%E7%99%BD%E8%A7%86%E8%A7%92%EF%BC%9A%E4%B8%80%E6%96%87%E8%AF%BB%E6%87%82%E7%A4%BE%E9%95%BF%E7%9A%84TinyWebServer/)
+    - [WebServer项目学习总结](https://www.haoxx.site/article/110)
+    - [从零开始实现C++ TinyWebServer 全过程记录](https://blog.csdn.net/weixin_51322383/article/details/130464403)
 
 ## 01. 基础测试
 
@@ -70,7 +75,7 @@ connPool->init("localhost", "root", "root", "yourdb", 3306, 8);
 const char* doc_root="/home/qgy/TinyWebServer/root";
 ```
 
-### 1.4 代码运行
+### 1.5 代码运行
 
 - 生成server
 
@@ -91,4 +96,6 @@ make server
 # ip 和 port 均为具体值，如 127.0.0.1:9006
 ip:port
 ```
+
+## 02. 框架梳理
 
