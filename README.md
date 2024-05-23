@@ -109,3 +109,52 @@ ip:port
     - 处理http请求
 
 ## 03. 代码梳理
+
+### 3.1 接受客户端发来的HTTP请求报文
+
+web服务器通过 socket 监听来自用户的请求
+
+#### 3.1.1 socket 编程API
+
+- socket：根据指定的地址族、数据类型和协议来分配一个socket的描述字及其所用的资源
+
+```cpp
+int socket(int domain, int type, int protocol);
+
+domain:协议族，常用的有AF_INET、AF_INET6、AF_LOCAL、AF_ROUTE其中AF_INET代表使用ipv4地址
+type:socket类型，常用的socket类型有，SOCK_STREAM、SOCK_DGRAM、SOCK_RAW、SOCK_PACKET、SOCK_SEQPACKET等
+protocol:协议。常用的协议有，IPPROTO_TCP、IPPTOTO_UDP、IPPROTO_SCTP、IPPROTO_TIPC等
+```
+
+#### 3.1.2 函数
+
+htonl， htons:
+- 网络字节顺序与本地字节顺序之间的转换函数
+```cpp
+- htonl(): 针对32位，4字节
+- htons(): 针对16位，2字节
+- 所占位数小于一个字节，8位时，不需要转换
+```
+
+setsockopt:
+- 获取或者设置与某个套接字关联的选项
+```cpp
+// s:       套接字描述符
+// level:   被设置的选项的级别，如果想要在套接字级别上设置选项，就必须把level设置为 SOL_SOCKET
+// optname: SO_REUSEADDR，打开或关闭地址复用功能
+// optval:  当 optval 不等于0时，打开，否则，关闭
+// optlen:  optval 缓冲区的长度
+int setsockopt(SOCKET s, int level, int optname, const char FAR *optval, int optlen);
+```
+
+fcntl:
+- 修改已经打开文件的属性
+```cpp
+int fcntl(int fd, int cmd);
+
+int fcntl(int fd, int cmd, long arg);         
+
+int fcntl(int fd, int cmd, struct flock *lock);
+
+// 获取、设置文件访问状态标志: F_GETFL、F_SETFL
+```
