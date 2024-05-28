@@ -1,11 +1,20 @@
 #ifndef HTTPCONNECTION_H
 #define HTTPCONNECTION_H
 
+#include <unistd.h>
+#include <sys/epoll.h>
+#include <fcntl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
+#include <errno.h>
 
 #include <sys/stat.h>
+#include <string.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <stdarg.h>
 
 class http_conn
 {
@@ -32,28 +41,28 @@ public:
     /* 解析客户请求时，主状态机所处的状态 */
     enum CHECK_STATE
     {
-        CHECK_STATE_REQUESTLINE = 0,
-        CHECK_STATE_HEADER,
-        CHECK_STATE_CONTENT
+        CHECK_STATE_REQUESTLINE = 0,    /* 解析请求行 */
+        CHECK_STATE_HEADER,             /* 解析请求头 */
+        CHECK_STATE_CONTENT             /* 解析消息体，仅用于解析 POST 请求 */
     };
     /* 服务器处理HTTP请求的可能结果 */
     enum HTTP_CODE
     {
-        NO_REQUEST,
-        GET_REQUEST,
-        BAD_REQUEST,
-        NO_RESOURCE,
-        FORBIDDEN_REQUEST,
-        FILE_REQUEST,
-        INTERNAL_ERROR,
+        NO_REQUEST,     /* 请求不完整，需要继续读取请求报文数据 */
+        GET_REQUEST,    /* 获得完整的 HTTP 请求 */
+        BAD_REQUEST,    /* HTTP 请求报文有语法错误 */
+        NO_RESOURCE,        /* 请求资源不存在 */
+        FORBIDDEN_REQUEST,  /* 请求资源禁止访问，没有读取权限  */
+        FILE_REQUEST,       /* 请求资源可以正常访问 */
+        INTERNAL_ERROR, /* 服务器内部错误，该结果在主状态机逻辑switch的default下，一般不会触发 */
         CLOSED_CONNECTION
     };
     /* 行的读取状态 */
     enum LINE_STATUS
     {
-        LINE_OK = 0,
-        LINE_BAD,
-        LINE_OPEN
+        LINE_OK = 0,    /* 完整读取一行 */
+        LINE_BAD,       /* 报文语法有误 */
+        LINE_OPEN       /* 读取的行不完整 */
     };
 
 public:
@@ -68,7 +77,7 @@ public:
     /* 处理客户请求 */
     void process();
     /* 非阻塞读操作 */
-    bool read();
+    bool read_once();
     /* 非阻塞写操作 */
     bool wirte();
 
@@ -106,8 +115,9 @@ public:
     static int m_user_count;
 
 private:
-    /* 该 HTTP 连接的 socket 和对方的 socket 地址 */
+    /* 该 HTTP 连接的 socket */
     int m_sockfd;
+    /* 该 HTTP 连接对方的 socket 地址*/
     sockaddr_in m_address;
 
     /* 读缓冲区 */
@@ -151,6 +161,11 @@ private:
     /* 采用 writev 来执行写操作，其中 m_iv_count 表示被写内存块的数量 */
     struct iovec m_iv[2];
     int m_iv_count;
+
+    /* 存储请求头数据 */
+    char* m_string;
+    int bytes_to_send;
+    int bytes_have_send;
 };
 
 #endif
