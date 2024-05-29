@@ -1,6 +1,7 @@
 #ifndef HTTPCONNECTION_H
 #define HTTPCONNECTION_H
 
+#include <signal.h>
 #include <unistd.h>
 #include <sys/epoll.h>
 #include <fcntl.h>

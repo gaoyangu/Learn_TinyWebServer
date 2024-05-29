@@ -7,18 +7,73 @@
 
 #include "./lock/locker.h"
 #include "./threadpool/threadpool.h"
+#include "./timer/min_heap.h"
 #include "./http/http_conn.h"
 
 #define MAX_FD 65536            /* 最大文件描述符 */
 #define MAX_EVENT_NUMBER 10000  /* 最大事件数 */
+#define TIMESLOT 5              /* 最小超时单位 */
 
 #define listenfdLT /* 水平触发阻塞 */
 // #define listenfdET /* 边缘触发非阻塞*/
 
 extern int addfd(int epollfd, int fd, bool one_shot);
 extern int removefd(int epollfd, int fd);
+extern int setnonblocking(int fd);
 
+static int pipefd[2];
 static int epollfd = 0;
+static time_heap timer_lst;
+
+/* 信号处理函数 */
+void sig_handler(int sig)
+{
+    /* 为保证函数的可重入性，保留原来的 errno */
+    /* 可重入性表示中断后再次进入该函数，环境变量与之前相同，不会丢失数据 */
+    int save_errno = errno;
+    int msg = sig;
+
+    /* 将信号值从管道写端写入，传输字符类型，而非整形 */
+    send(pipefd[1], (char *)&msg, 1, 0);
+    errno = save_errno;
+}
+
+/* 设置信号函数 */
+void addsig(int sig, void(handler)(int), bool restart = true)
+{
+    struct sigaction sa;
+    memset(&sa, '\0', sizeof(sa));
+
+    /* 信号处理函数中仅发送信号，不做对应的逻辑处理 */
+    sa.sa_handler = handler;
+    if(restart)
+    {
+        sa.sa_flags |= SA_RESTART;
+    }
+    /* 将所有信号添加到信号集中 */
+    sigfillset(&sa.sa_mask);
+
+    /* 执行 sigaction 函数 */
+    assert(sigaction(sig, &sa, NULL) != -1);
+}
+
+/* 定时处理任务 */
+void timer_handler()
+{
+    timer_lst.tick();
+
+    time_t cur = time(NULL);
+    alarm(timer_lst.array[0]->expire - cur);
+}
+
+/* 定时器回调函数，删除非活动连接在 socket 上的注册事件，并关闭 */
+void cb_func(clinet_data* user_data)
+{
+    assert(user_data);
+    epoll_ctl(epollfd, EPOLL_CTL_DEL, user_data->sockfd, 0);
+    close(user_data->sockfd);
+    http_conn::m_user_count--;
+}
 
 int main(int argc, char* argv[])
 {
@@ -87,7 +142,27 @@ int main(int argc, char* argv[])
     addfd(epollfd, listenfd, false);
     http_conn::m_epollfd = epollfd;
 
+    /* 创建管道套接字 */
+    ret = socketpair(PF_UNIX, SOCK_STREAM, 0, pipefd);
+    assert(ret != -1);
+    
+    /* 设置管道写端为非阻塞 */
+    setnonblocking(pipefd[1]);
+    /* 设置管道读端为 ET 非阻塞 */
+    addfd(epollfd, pipefd[0], false);
+
+    /* 传递给主循环的信号值，这里只关注 SIGALRM 和 SIGTERM */
+    addsig(SIGALRM, sig_handler, false);
+    addsig(SIGTERM, sig_handler, false);
+
     bool stop_server = false;
+
+    clinet_data* users_timer = new clinet_data[MAX_FD];
+
+    /* 超时标志 */
+    bool timeout = false;
+    /* 每隔 TIMESLOT 时间触发 SIGALRM 信号 */
+    alarm(TIMESLOT);
 
     while (!stop_server)
     {
@@ -126,6 +201,16 @@ int main(int argc, char* argv[])
 
                 /* 初始化客户连接 */
                 users[connfd].init(connfd, client_address);
+
+                users_timer[connfd].address = client_address;
+                users_timer[connfd].sockfd = connfd;
+                heap_timer* timer = new heap_timer;
+                timer->user_data = &users_timer[connfd];
+                timer->cb_func = cb_func;
+                timer_t cur = time(NULL);
+                timer->expire = cur + 3 * TIMESLOT;
+                users_timer[connfd].timer = timer;
+                timer_lst.add_timer(timer);
 #enfif
 
 /* ET 非阻塞边缘触发 */
@@ -146,6 +231,16 @@ int main(int argc, char* argv[])
                     
                     /* 初始化客户连接 */
                     users[connfd].init(connfd, client_address);
+
+                    users_timer[connfd].address = client_address;
+                    users_timer[connfd].sockfd = connfd;
+                    heap_timer* timer = new heap_timer;
+                    timer->user_data = &users_timer[connfd];
+                    timer->cb_func = cb_func;
+                    timer_t cur = time(NULL);
+                    timer->expire = cur + 3 * TIMESLOT;
+                    users_timer[connfd].timer = timer;
+                    timer_lst.add_timer(timer);
                 }
                 continue;
 #endif
@@ -154,29 +249,123 @@ int main(int argc, char* argv[])
             else if(events[i].events & (EPOLLRDHUP | EPOLLHUP | EPOLLERR))
             {
                 /* 如果有异常，直接关闭客户连接 */
-                users[sockfd].close_conn();
+                // users[sockfd].close_conn();
+
+                cb_func(&users_timer[sockfd]);
+
+                heap_timer* timer = users_timer[sockfd].timer;
+                if(timer)
+                {
+                    timer_lst.del_timer(timer);
+                }
+            }
+            /* 处理信号 */
+            else if((sockfd == pipefd[0]) && (events[i].events & EPOLLIN))
+            {
+                int sig;
+                char signals[1024];
+
+                /* 从管道读端读出信号值，成功返回字节数，失败返回 -1*/
+                ret = recv(pipefd[0], signals, sizeof(signals), 0);
+                if(-1 == ret)
+                {
+                    continue;
+                }
+                else if(0 == ret)
+                {
+                    continue;
+                }
+                else
+                {
+                    /* 处理信号值对应的逻辑 */
+                    for(int i = 0; i < ret; ++i)
+                    {
+                        switch (signals[i])
+                        {
+                        case SIGALRM:
+                        {
+                            timeout = true;
+                            break;
+                        }
+                        case SIGTERM:
+                        {
+                            stop_server = true;
+                            break;
+                        }
+                        }
+                    }
+                }
             }
             /* 处理客户端连接上接收到的数据 */
             else if(events[i].events & EPOLLIN)
             {
+                /* 取出该连接对应的定时器 */
+                heap_timer* timer = users_timer[sockfd].timer;
+                
                 /* 根据读的结果，决定是将任务添加到线程池，还是关闭连接 */
                 if(users[sockfd].read_once())
                 {
                     pool->append(users + sockfd);
+
+                    /* 若有数据传输，则将定时器往后延迟3个单位 */
+                    if(timer)
+                    {
+                        heap_timer* new_timer = new heap_timer;
+                        timer_t cur = time(NULL);
+                        new_timer->expire = cur + 3 * TIMESLOT;
+                        new_timer->cb_func = timer->cb_func;
+                        new_timer->user_data = timer->user_data;
+
+                        timer_lst.del_timer(timer);
+                        timer_lst.add_timer(new_timer);
+                    }
                 }
                 else
                 {
-                    users[sockfd].close_conn();
+                    // users[sockfd].close_conn();
+                    cb_func(&users_timer[sockfd]);
+                    if(timer)
+                    {
+                        timer_lst.del_timer(timer);
+                    }
                 }
             }
             else if(events[i].events & EPOLLOUT)
             {
+                /* 取出该连接对应的定时器 */
+                heap_timer* timer = users_timer[sockfd].timer;
+
                 /* 根据写的结果，决定是否关闭连接 */
-                if(!users[sockfd].write())
+                if(users[sockfd].write())
                 {
-                    users[sockfd].close_conn();
+                    /* 若有数据传输，则将定时器往后延迟3个单位 */
+                    if(timer)
+                    {
+                        heap_timer* new_timer = new heap_timer;
+                        timer_t cur = time(NULL);
+                        new_timer->expire = cur + 3 * TIMESLOT;
+                        new_timer->cb_func = timer->cb_func;
+                        new_timer->user_data = timer->user_data;
+
+                        timer_lst.del_timer(timer);
+                        timer_lst.add_timer(new_timer);
+                    }
+                }
+                else
+                {
+                    // users[sockfd].close_conn();
+                    cb_func(&users_timer[sockfd]);
+                    if(timer)
+                    {
+                        timer_lst.del_timer(timer);
+                    }
                 }
             }
+        }
+        if(timeout)
+        {
+            timer_handler();
+            timeout = false;
         }
         
     }
