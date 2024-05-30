@@ -9,6 +9,7 @@
 #include "./threadpool/threadpool.h"
 #include "./timer/min_heap.h"
 #include "./http/http_conn.h"
+#include "./CGImysql/sql_connection_pool.h"
 
 #define MAX_FD 65536            /* 最大文件描述符 */
 #define MAX_EVENT_NUMBER 10000  /* 最大事件数 */
@@ -88,11 +89,15 @@ int main(int argc, char* argv[])
     /* 忽略 SIGPIPE 信号 */
     addsig(SIGPIPE, SIG_IGN);
 
+    /* 创建数据库连接池 */
+    connection_pool* connPool = connection_pool::GetInstance();
+    connPool->init("localhost", "root", "root", "qgydb", 3306, 8);
+
     /* 创建线程池 */
     threadpool<http_conn>* pool = NULL;
     try
     {
-        pool = new threadpool<http_conn>();
+        pool = new threadpool<http_conn>(connPool);
     }
     catch(...)
     {
@@ -102,7 +107,9 @@ int main(int argc, char* argv[])
     /* 预先为每个可能的客户连接分配一个 http_conn 对象 */
     http_conn* users = new http_conn[MAX_FD];
     assert(users);
-    int user_count = 0;
+
+    /* 初始化数据库读取表 */
+    users->initmysql_result(connPool);
 
     /* 创建监听socket文件描述符 */
     int listenfd = socket(PF_INET, SOCK_STREAM, 0);

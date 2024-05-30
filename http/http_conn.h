@@ -16,6 +16,9 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <stdarg.h>
+#include <map>
+
+#include "../CGImysql/sql_connection_pool.h"
 
 class http_conn
 {
@@ -81,6 +84,8 @@ public:
     bool read_once();
     /* 非阻塞写操作 */
     bool wirte();
+
+    void initmysql_result(connection_pool *connPool);
 
 private:
     /* 初始化连接 */
@@ -162,6 +167,8 @@ private:
     /* 采用 writev 来执行写操作，其中 m_iv_count 表示被写内存块的数量 */
     struct iovec m_iv[2];
     int m_iv_count;
+
+    int cgi;
 
     /* 存储请求头数据 */
     char* m_string;
