@@ -18,21 +18,26 @@ public:
         return &instance;
     }
 
+    bool init(const char* file_name, int log_buf_size = 8192, 
+            int split_lines = 5000000, int max_queue_size = 0);
+
+    /* 异步写日志公有方法 */
     static void* flush_log_thread(void *args)
     {
         Log::get_instance()->async_write_log();
     }
 
-    bool init(const char* file_name, int log_buf_size = 8192, 
-                int split_lines = 5000000, int max_queue_size = 0);
-    
+    /* 将输出内容按照标准格式整理 */
     void write_log(int level, const char* format, ...);
 
+    /* 强制刷新缓冲区 */
     void flush(void);
 
 private:
     Log();
     virtual ~Log();
+
+    /* 异步写日志方法 */
     void* async_write_log()
     {
         string single_log;
