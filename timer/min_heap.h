@@ -164,6 +164,40 @@ public:
         }
     }
 
+    /* 调整指定的定时器 */
+    void adjust(heap_timer* timer)
+    {
+        if(!timer)
+        {
+            return;
+        }
+
+        int id = find(timer);
+        if(id < 0)
+        {
+            return;
+        }
+        percolate_down(id);
+    }
+
+
+    /* 查找指定的定时器 */
+    int find(heap_timer* timer)
+    {
+        if(!timer)
+        {
+            return -1;
+        }
+        for(int i = 0; i < cur_size; i++)
+        {
+            if(array[i] == timer)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
     void tick()
     {
         heap_timer* tmp = array[0];

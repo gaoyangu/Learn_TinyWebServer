@@ -317,14 +317,9 @@ int main(int argc, char* argv[])
                     /* 若有数据传输，则将定时器往后延迟3个单位 */
                     if(timer)
                     {
-                        heap_timer* new_timer = new heap_timer;
                         timer_t cur = time(NULL);
-                        new_timer->expire = cur + 3 * TIMESLOT;
-                        new_timer->cb_func = timer->cb_func;
-                        new_timer->user_data = timer->user_data;
-
-                        timer_lst.del_timer(timer);
-                        timer_lst.add_timer(new_timer);
+                        timer->expire = cur + 3 * TIMESLOT;
+                        timer_lst.adjust(timer);
                     }
                 }
                 else
@@ -348,14 +343,9 @@ int main(int argc, char* argv[])
                     /* 若有数据传输，则将定时器往后延迟3个单位 */
                     if(timer)
                     {
-                        heap_timer* new_timer = new heap_timer;
                         timer_t cur = time(NULL);
-                        new_timer->expire = cur + 3 * TIMESLOT;
-                        new_timer->cb_func = timer->cb_func;
-                        new_timer->user_data = timer->user_data;
-
-                        timer_lst.del_timer(timer);
-                        timer_lst.add_timer(new_timer);
+                        timer->expire = cur + 3 * TIMESLOT;
+                        timer_lst.adjust(timer);
                     }
                 }
                 else
