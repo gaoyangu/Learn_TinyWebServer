@@ -4,6 +4,7 @@
 #include <errno.h>
 
 #include <sys/epoll.h>
+#include <cassert>
 
 #include "./lock/locker.h"
 #include "./threadpool/threadpool.h"
@@ -24,7 +25,7 @@ extern int setnonblocking(int fd);
 
 static int pipefd[2];
 static int epollfd = 0;
-static time_heap timer_lst;
+static time_heap timer_lst(5);
 
 /* 信号处理函数 */
 void sig_handler(int sig)
@@ -64,7 +65,7 @@ void timer_handler()
     timer_lst.tick();
 
     time_t cur = time(NULL);
-    alarm(timer_lst.array[0]->expire - cur);
+    alarm(timer_lst.top()->expire - cur);
 }
 
 /* 定时器回调函数，删除非活动连接在 socket 上的注册事件，并关闭 */
@@ -74,6 +75,13 @@ void cb_func(clinet_data* user_data)
     epoll_ctl(epollfd, EPOLL_CTL_DEL, user_data->sockfd, 0);
     close(user_data->sockfd);
     http_conn::m_user_count--;
+}
+
+void show_error(int connfd, const char* info)
+{
+    printf("%s", info);
+    send(connfd, info, strlen(info), 0);
+    close(connfd);
 }
 
 int main(int argc, char* argv[])
@@ -211,14 +219,14 @@ int main(int argc, char* argv[])
 
                 users_timer[connfd].address = client_address;
                 users_timer[connfd].sockfd = connfd;
-                heap_timer* timer = new heap_timer;
+                heap_timer* timer = new heap_timer(0);
                 timer->user_data = &users_timer[connfd];
                 timer->cb_func = cb_func;
-                timer_t cur = time(NULL);
+                time_t cur = time(NULL);
                 timer->expire = cur + 3 * TIMESLOT;
                 users_timer[connfd].timer = timer;
                 timer_lst.add_timer(timer);
-#enfif
+#endif
 
 /* ET 非阻塞边缘触发 */
 #ifdef listenfdET
@@ -317,7 +325,7 @@ int main(int argc, char* argv[])
                     /* 若有数据传输，则将定时器往后延迟3个单位 */
                     if(timer)
                     {
-                        timer_t cur = time(NULL);
+                        time_t cur = time(NULL);
                         timer->expire = cur + 3 * TIMESLOT;
                         timer_lst.adjust(timer);
                     }
@@ -343,7 +351,7 @@ int main(int argc, char* argv[])
                     /* 若有数据传输，则将定时器往后延迟3个单位 */
                     if(timer)
                     {
-                        timer_t cur = time(NULL);
+                        time_t cur = time(NULL);
                         timer->expire = cur + 3 * TIMESLOT;
                         timer_lst.adjust(timer);
                     }

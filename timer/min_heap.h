@@ -42,7 +42,7 @@ class time_heap
 {
 public:
     /* 构造函数之一，初始化一个大小为 cap 的空堆 */
-    time_heap(int cap) throw (std::exception) : capacity(cap), cur_size(0)
+    time_heap(int cap) : capacity(cap), cur_size(0)
     {
         array = new heap_timer*[capacity];
         if(!array)
@@ -55,7 +55,7 @@ public:
         }
     }
     /* 构造函数之二，用已有数组来初始化堆 */
-    time_heap(heap_timer** init_array, int size, int cap) throw (std::exception)
+    time_heap(heap_timer** init_array, int size, int cap)
                 : cur_size(size), capacity(cap)
     {
         if(capacity < size)

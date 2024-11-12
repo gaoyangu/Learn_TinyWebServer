@@ -18,6 +18,14 @@ public:
         }   
     }
 
+    sem(int num)
+    {
+        if(sem_init(&m_sem, 0, num) != 0)
+        {
+            throw std::exception();
+        }   
+    }
+
     /* 销毁信号量 */
     ~sem()
     {
@@ -106,12 +114,12 @@ public:
     }
 
     /* 等待条件变量 */
-    bool wait()
+    bool wait(pthread_mutex_t* m_mutex)
     {
         int ret = 0;
-        pthread_mutex_lock(&m_mutex);
-        ret = pthread_cond_wait(&m_cond, &m_mutex);
-        pthread_mutex_unlock(&m_mutex);
+        //pthread_mutex_lock(&m_mutex);
+        ret = pthread_cond_wait(&m_cond, m_mutex);
+        //pthread_mutex_unlock(&m_mutex);
         return ret == 0;
     }
 

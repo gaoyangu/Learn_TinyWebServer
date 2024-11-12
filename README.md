@@ -158,3 +158,10 @@ int fcntl(int fd, int cmd, struct flock *lock);
 
 // 获取、设置文件访问状态标志: F_GETFL、F_SETFL
 ```
+
+## 04. 编译
+
+```sh
+# 安装 mysql 的相关链接库
+sudo apt-get install libmysqlclient-dev
+```

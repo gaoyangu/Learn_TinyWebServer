@@ -17,6 +17,7 @@
 #include <sys/mman.h>
 #include <stdarg.h>
 #include <map>
+#include <sys/uio.h>
 
 #include "../CGImysql/sql_connection_pool.h"
 
@@ -83,7 +84,7 @@ public:
     /* 非阻塞读操作 */
     bool read_once();
     /* 非阻塞写操作 */
-    bool wirte();
+    bool write();
 
     void initmysql_result(connection_pool *connPool);
 
@@ -119,6 +120,7 @@ public:
     static int m_epollfd;
     /* 统计用户数量 */
     static int m_user_count;
+    MYSQL* mysql;
 
 private:
     /* 该 HTTP 连接的 socket */

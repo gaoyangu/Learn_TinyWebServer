@@ -1,4 +1,6 @@
 #include "http_conn.h"
+#include "../log/log.h"
+#include <fstream>
 
 // #define connfdLT /* 水平触发阻塞 */
 #define connfdET /* 边缘触发非阻塞*/
@@ -492,7 +494,7 @@ void http_conn::unmap()
     }
 }
 
-bool http_conn::wirte()
+bool http_conn::write()
 {
     int temp = 0;
     int newadd = 0;
@@ -508,7 +510,7 @@ bool http_conn::wirte()
     while (1)
     {
         /* 将响应报文的状态行、消息头、空行和响应正文发送给浏览器 */
-        temp = write(m_sockfd, m_iv, m_iv_count);
+        temp = writev(m_sockfd, m_iv, m_iv_count);
 
         /* 正常发送，temp 为发送的字节数 */
         if(temp > 0 )
