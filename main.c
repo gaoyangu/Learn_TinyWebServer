@@ -65,7 +65,9 @@ void timer_handler()
     timer_lst.tick();
 
     time_t cur = time(NULL);
-    alarm(timer_lst.top()->expire - cur);
+    if( ! timer_lst.empty() ){
+        alarm(timer_lst.top()->expire - cur);
+    }
 }
 
 /* 定时器回调函数，删除非活动连接在 socket 上的注册事件，并关闭 */
@@ -88,7 +90,7 @@ int main(int argc, char* argv[])
 {
     if(argc <= 1)
     {
-        printf("usage: %s ip_address port_number\n", basename(argv[0]));
+        printf("usage: %s port_number\n", basename(argv[0]));
         return 1;
     }
 
@@ -99,7 +101,7 @@ int main(int argc, char* argv[])
 
     /* 创建数据库连接池 */
     connection_pool* connPool = connection_pool::GetInstance();
-    connPool->init("localhost", "root", "root", "qgydb", 3306, 8);
+    connPool->init("localhost", "qyg", "", "qygdb", 3306, 8);
 
     /* 创建线程池 */
     threadpool<http_conn>* pool = NULL;
@@ -219,7 +221,7 @@ int main(int argc, char* argv[])
 
                 users_timer[connfd].address = client_address;
                 users_timer[connfd].sockfd = connfd;
-                heap_timer* timer = new heap_timer(0);
+                heap_timer* timer = new heap_timer(60);
                 timer->user_data = &users_timer[connfd];
                 timer->cb_func = cb_func;
                 time_t cur = time(NULL);
@@ -249,7 +251,7 @@ int main(int argc, char* argv[])
 
                     users_timer[connfd].address = client_address;
                     users_timer[connfd].sockfd = connfd;
-                    heap_timer* timer = new heap_timer;
+                    heap_timer* timer = new heap_timer(60);
                     timer->user_data = &users_timer[connfd];
                     timer->cb_func = cb_func;
                     timer_t cur = time(NULL);

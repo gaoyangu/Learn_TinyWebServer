@@ -18,11 +18,11 @@ const char *error_500_form = "There was an unusual problem serving the request f
 
 /* 当浏览器出现连接重置时，可能是网站根目录出错或 http 响应格式出错
    或者访问的文件中内容完全为空 */
-const char* doc_root = "/home/qgy/github/TinyWebServer/root";
+const char* doc_root = "/home/qyg/code/Learn_TinyWebServer/root";
 
 /* 将表中的用户名和密码放入 map */
 map<string, string> users;
-locker lock;
+locker m_lock;
 
 void http_conn::initmysql_result(connection_pool *connPool)
 {
@@ -432,7 +432,65 @@ http_conn::HTTP_CODE http_conn::do_request()
     /* 实现登录和注册校验 */
     if(cgi == 1 && (*(p + 1) == '2' || *(p + 1) == '3'))
     {
+        //根据标志判断是登录检测还是注册检测
+        char flag = m_url[1];
 
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/");
+        strcat(m_url_real, m_url + 2);
+        strncpy(m_real_file + len, m_url_real, FILENAME_LEN - len - 1);
+        free(m_url_real);
+
+        //将用户名和密码提取出来
+        //user=123&passwd=123
+        char name[100], password[100];
+        int i;
+        for (i = 5; m_string[i] != '&'; ++i)
+            name[i - 5] = m_string[i];
+        name[i - 5] = '\0';
+
+        int j = 0;
+        for (i = i + 10; m_string[i] != '\0'; ++i, ++j)
+            password[j] = m_string[i];
+        password[j] = '\0';
+
+        //同步线程登录校验
+        if (*(p + 1) == '3')
+        {
+            //如果是注册，先检测数据库中是否有重名的
+            //没有重名的，进行增加数据
+            char *sql_insert = (char *)malloc(sizeof(char) * 200);
+            strcpy(sql_insert, "INSERT INTO user(username, passwd) VALUES(");
+            strcat(sql_insert, "'");
+            strcat(sql_insert, name);
+            strcat(sql_insert, "', '");
+            strcat(sql_insert, password);
+            strcat(sql_insert, "')");
+
+            if (users.find(name) == users.end())
+            {
+                m_lock.lock();
+                int res = mysql_query(mysql, sql_insert);
+                users.insert(pair<string, string>(name, password));
+                m_lock.unlock();
+
+                if (!res)
+                    strcpy(m_url, "/log.html");
+                else
+                    strcpy(m_url, "/registerError.html");
+            }
+            else
+                strcpy(m_url, "/registerError.html");
+        }
+        //如果是登录，直接判断
+        //若浏览器端输入的用户名和密码在表中可以查找到，返回1，否则返回0
+        else if (*(p + 1) == '2')
+        {
+            if (users.find(name) != users.end() && users[name] == password)
+                strcpy(m_url, "/welcome.html");
+            else
+                strcpy(m_url, "/logError.html");
+        }
     }
 
     /* 如果请求资源为 /0，表示跳转注册界面 */
@@ -453,6 +511,30 @@ http_conn::HTTP_CODE http_conn::do_request()
         strcpy(m_url_real, "/log.html");
 
         /* 将网站目录和 /log.html 进行拼接，更新到 m_real_file 中 */
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+
+        free(m_url_real);
+    }
+    else if (*(p + 1) == '5')
+    {
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/picture.html");
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+
+        free(m_url_real);
+    }
+    else if (*(p + 1) == '6')
+    {
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/video.html");
+        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+
+        free(m_url_real);
+    }
+    else if (*(p + 1) == '7')
+    {
+        char *m_url_real = (char *)malloc(sizeof(char) * 200);
+        strcpy(m_url_real, "/fans.html");
         strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
 
         free(m_url_real);
