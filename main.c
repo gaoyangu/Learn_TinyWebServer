@@ -11,10 +11,14 @@
 #include "./timer/min_heap.h"
 #include "./http/http_conn.h"
 #include "./CGImysql/sql_connection_pool.h"
+#include "./log/log.h"
 
 #define MAX_FD 65536            /* 最大文件描述符 */
 #define MAX_EVENT_NUMBER 10000  /* 最大事件数 */
 #define TIMESLOT 5              /* 最小超时单位 */
+
+#define SYNLOG      /* 同步写日志 */
+//#define ASYNLOG   /* 异步写日志 */
 
 #define listenfdLT /* 水平触发阻塞 */
 // #define listenfdET /* 边缘触发非阻塞*/
@@ -93,6 +97,14 @@ int main(int argc, char* argv[])
         printf("usage: %s port_number\n", basename(argv[0]));
         return 1;
     }
+
+#ifdef ASYNLOG
+    Log::get_instance()->init("ServerLog", 2000, 80000, 8);
+#endif
+
+#ifdef SYNLOG
+    Log::get_instance()->init("ServerLog", 2000, 80000, 0);
+#endif
 
     int port = atoi(argv[1]);
 

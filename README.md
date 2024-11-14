@@ -45,10 +45,10 @@ mysql -u root -p    # 本机
 
 ```sql
 #建立yourdb库
-create database yourdb;
+create database qygdb;
 
 #创建user表
-USE yourdb;
+USE qygdb;
 CREATE TABLE user(
     username char(50) NULL,
     passwd char(50) NULL

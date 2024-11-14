@@ -119,6 +119,8 @@ void http_conn::init(int sockfd, const sockaddr_in& addr)
 /* m_check_state 默认为分析请求行状态 */
 void http_conn::init()
 {
+    mysql = NULL;
+    cgi = 0;
     m_check_state = CHECK_STATE_REQUESTLINE;
     m_linger = false;
 
@@ -247,6 +249,7 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char* text)
     else if(strcasecmp(method, "POST") == 0)
     {
         m_method = POST;
+        cgi = 1;
     }
     else
     {
@@ -341,7 +344,9 @@ http_conn::HTTP_CODE http_conn::parse_headers(char* text)
     }
     else
     {
-        printf("oop! unkonw header: %s\n", text);
+        LOG_ERROR("oop! unkonw header: %s\n", text);
+        Log::get_instance()->flush();
+        //printf("oop! unkonw header: %s\n", text);
     }
     return NO_REQUEST;
 }
@@ -692,6 +697,7 @@ bool http_conn::add_headers(int content_length)
     add_content_length(content_length);
     add_linger();
     add_blank_line();
+    return true;
 }
 
 /* 添加 Content-Length，表示响应报文的长度 */
@@ -769,8 +775,8 @@ bool http_conn::process_wirte(HTTP_CODE ret)
             m_iv[0].iov_base = m_write_buf;
             m_iv[0].iov_len = m_write_idx;
             /* 第二个 iovec 指针指向 mmap 返回的文件指针，长度指向文件大小 */
-            m_iv[0].iov_base = m_file_address;
-            m_iv[0].iov_len = m_file_stat.st_size;
+            m_iv[1].iov_base = m_file_address;
+            m_iv[1].iov_len = m_file_stat.st_size;
             m_iv_count = 2;
             /* 发送的全部数据为响应报文头部信息和文件大小 */
             bytes_to_send = m_write_idx + m_file_stat.st_size;
