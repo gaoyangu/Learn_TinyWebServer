@@ -1,5 +1,20 @@
-server: main.c ./threadpool/threadpool.h ./http/http_conn.cpp ./http/http_conn.h ./lock/locker.h ./log/log.cpp ./log/log.h ./log/block_queue.h ./CGImysql/sql_connection_pool.cpp ./CGImysql/sql_connection_pool.h
-	g++ -o server main.c ./threadpool/threadpool.h ./http/http_conn.cpp ./http/http_conn.h ./lock/locker.h ./log/log.cpp ./log/log.h ./CGImysql/sql_connection_pool.cpp ./CGImysql/sql_connection_pool.h -lpthread -lmysqlclient -g
+SRC_DIR = ./
+SRCS = $(shell find $(SRC_DIR) -name '*.cpp')
+TARGET = tinywebserver
 
+CXX ?= g++
+CXXFLAGS ?= -lpthread -lmysqlclient
+
+DEBUG ?= 1
+ifeq ($(DEBUG), 1)
+    CXXFLAGS += -g
+endif
+
+all : $(TARGET)
+
+$(TARGET) : main.c $(SRCS)
+	$(CXX) -o $(TARGET) $^ $(CXXFLAGS)
+
+.PHONY: clean
 clean:
-	rm  -r server
+	rm -rf $(TARGET)
