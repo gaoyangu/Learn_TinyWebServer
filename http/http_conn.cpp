@@ -344,9 +344,9 @@ http_conn::HTTP_CODE http_conn::parse_headers(char* text)
     }
     else
     {
-        LOG_ERROR("oop! unkonw header: %s\n", text);
-        Log::get_instance()->flush();
-        //printf("oop! unkonw header: %s\n", text);
+        // LOG_ERROR("[http_conn] oop! unkonw header: %s\n", text);
+        // Log::get_instance()->flush();
+        printf("oop! unkonw header: %s\n", text);
     }
     return NO_REQUEST;
 }

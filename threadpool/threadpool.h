@@ -7,6 +7,7 @@
 #include <pthread.h>
 #include "../lock/locker.h"
 #include "../CGImysql/sql_connection_pool.h"
+#include "../log/log.h"
 
 /* 线程池类，将它定义为模板类是为了代码复用。模板参数 T 是任务类 */
 template<typename T>
@@ -54,7 +55,9 @@ threadpool<T>::threadpool(connection_pool* connPool, int thread_number, int max_
     /* 创建 thread_number 线程，并将它们设置为脱离线程 */
     for(int i = 0; i < thread_number; i++)
     {
-        printf("create the %dth thread\n", i);
+        // printf("create the %dth thread\n", i);
+        LOG_INFO("[threadpool] create the %dth thread\n", i);
+        Log::get_instance()->flush();
         if(pthread_create(m_threads + i, NULL, worker, this) != 0)
         {
             delete [] m_threads;

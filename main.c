@@ -17,8 +17,8 @@
 #define MAX_EVENT_NUMBER 10000  /* 最大事件数 */
 #define TIMESLOT 5              /* 最小超时单位 */
 
-#define SYNLOG      /* 同步写日志 */
-//#define ASYNLOG   /* 异步写日志 */
+//#define SYNLOG      /* 同步写日志 */
+#define ASYNLOG   /* 异步写日志 */
 
 #define listenfdLT /* 水平触发阻塞 */
 // #define listenfdET /* 边缘触发非阻塞*/
@@ -66,14 +66,21 @@ void addsig(int sig, void(handler)(int), bool restart = true)
 /* 定时处理任务 */
 void timer_handler()
 {
+    LOG_DEBUG("[main] call timer_handler()\n");
+    Log::get_instance()->flush();
+
     timer_lst.tick();
 
-    time_t cur = time(NULL);
-    if( ! timer_lst.empty() ){
+    if( ! timer_lst.empty() )
+    {
+        time_t cur = time(NULL);
         alarm(timer_lst.top()->expire - cur);
     }
+    else
+    {
+        alarm(TIMESLOT);
+    }
 }
-
 /* 定时器回调函数，删除非活动连接在 socket 上的注册事件，并关闭 */
 void cb_func(clinet_data* user_data)
 {
@@ -233,7 +240,7 @@ int main(int argc, char* argv[])
 
                 users_timer[connfd].address = client_address;
                 users_timer[connfd].sockfd = connfd;
-                heap_timer* timer = new heap_timer(60);
+                heap_timer* timer = new heap_timer(0);
                 timer->user_data = &users_timer[connfd];
                 timer->cb_func = cb_func;
                 time_t cur = time(NULL);
