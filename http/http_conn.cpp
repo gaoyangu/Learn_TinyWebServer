@@ -5,6 +5,9 @@
 // #define connfdLT /* 水平触发阻塞 */
 #define connfdET /* 边缘触发非阻塞*/
 
+// #define listenfdLT /* 水平触发阻塞 */
+#define listenfdET /* 边缘触发非阻塞*/
+
 /* 定义 http 响应的一些状态信息 */
 const char *ok_200_title = "OK";
 const char *error_400_title = "Bad Request";
@@ -65,7 +68,14 @@ void addfd(int epollfd, int fd, bool one_shot)
 {
     epoll_event event;
     event.data.fd = fd;
+#ifdef listenfdET
     event.events = EPOLLIN | EPOLLET | EPOLLRDHUP;
+#endif
+
+#ifdef listenfdLT
+    event.events = EPOLLIN | EPOLLRDHUP;
+#endif
+
     if (one_shot)
     {
         event.events |= EPOLLONESHOT;

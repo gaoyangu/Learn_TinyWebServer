@@ -20,8 +20,8 @@
 //#define SYNLOG      /* 同步写日志 */
 #define ASYNLOG   /* 异步写日志 */
 
-#define listenfdLT /* 水平触发阻塞 */
-// #define listenfdET /* 边缘触发非阻塞*/
+// #define listenfdLT /* 水平触发阻塞 */
+#define listenfdET /* 边缘触发非阻塞*/
 
 extern int addfd(int epollfd, int fd, bool one_shot);
 extern int removefd(int epollfd, int fd);
@@ -84,6 +84,9 @@ void timer_handler()
 /* 定时器回调函数，删除非活动连接在 socket 上的注册事件，并关闭 */
 void cb_func(clinet_data* user_data)
 {
+    LOG_DEBUG("[main] call cb_func()\n");
+    Log::get_instance()->flush();
+
     assert(user_data);
     epoll_ctl(epollfd, EPOLL_CTL_DEL, user_data->sockfd, 0);
     close(user_data->sockfd);
@@ -273,7 +276,7 @@ int main(int argc, char* argv[])
                     heap_timer* timer = new heap_timer(60);
                     timer->user_data = &users_timer[connfd];
                     timer->cb_func = cb_func;
-                    timer_t cur = time(NULL);
+                    time_t cur = time(NULL);
                     timer->expire = cur + 3 * TIMESLOT;
                     users_timer[connfd].timer = timer;
                     timer_lst.add_timer(timer);
